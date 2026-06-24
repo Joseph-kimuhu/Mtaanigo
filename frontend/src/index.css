@@ -7,11 +7,11 @@
   --color-secondary-dark: #047857;
   --color-accent: #d97706;
   --color-accent-dark: #b45309;
-  --color-background: #0f172a;
-  --color-text: #f8fafc;
-  --color-text-light: #94a3b8;
-  --color-surface: #1e293b;
-  --color-border: #334155;
+  --color-background: #fbf8f2;
+  --color-text: #1a1a18;
+  --color-text-light: #6b6b64;
+  --color-surface: #f1ece1;
+  --color-border: #1a1a18;
 }
 
 @layer base {
@@ -20,7 +20,7 @@
   }
   body {
     margin: 0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     color: var(--color-text);
     background-color: var(--color-background);
     -webkit-font-smoothing: antialiased;
@@ -28,8 +28,11 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', 'Inter', sans-serif;
-    font-weight: 600;
+    font-family: 'Anton', 'Poppins', sans-serif;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 0.96;
   }
 }
 

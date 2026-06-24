@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routes import auth, categories, requests, messages, ratings, payments
+from app.routes import auth, categories, requests, messages, ratings, payments, admin, provider
+
 from app.config import settings
 
 Base.metadata.create_all(bind=engine)
@@ -23,9 +24,12 @@ app.include_router(requests.router)
 app.include_router(messages.router)
 app.include_router(ratings.router)
 app.include_router(payments.router)
+app.include_router(admin.router)
+app.include_router(provider.router)
 
 
 @app.get("/")
+
 def health_check():
     return {"status": "healthy", "app": "MtaaniGo API", "version": "1.0.0"}
 
