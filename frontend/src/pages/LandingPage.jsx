@@ -111,13 +111,25 @@ function LandingPage() {
           letter-spacing:0.02em;
         }
         .logo span{color:var(--red);}
-        .nav-links{display:flex;gap:30px;align-items:center;}
+        .nav-links{display:flex;gap:24px;align-items:center;}
         .nav-links a{
           font-family:'IBM Plex Mono', monospace;
           font-size:12.5px;
           text-transform:uppercase;
           letter-spacing:0.05em;
         }
+        .nav-links .nav-auth{
+          font-family:'IBM Plex Mono', monospace;
+          font-size:12.5px;
+          text-transform:uppercase;
+          letter-spacing:0.05em;
+          padding:6px 14px;
+          border:2px solid var(--ink);
+          border-radius:4px;
+          background:transparent;
+          color:var(--ink);
+        }
+        .nav-links .nav-auth:hover{background:var(--ink);color:var(--chalk);}
         .nav-links a:hover{color:var(--red);}
         .nav-cta{display:flex;}
         .burger{display:none;background:none;border:none;cursor:pointer;}
@@ -495,6 +507,8 @@ function LandingPage() {
               <a href="#categories">Categories</a>
               <a href="#fundis">Fundis</a>
               <a href="#join">For fundis</a>
+              <Link to="/login" className="nav-auth">Log in</Link>
+              <Link to="/register" className="btn outline">Sign up</Link>
             </div>
             <div className="nav-cta">
               <Link to="#search" className="btn red"><span className="full">Find a fundi</span><span>→</span></Link>

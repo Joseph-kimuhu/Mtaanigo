@@ -1,127 +1,164 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-function AdminRegisterPage() {
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    password: '',
-    secret_code: '',
-  });
+function AdminLoginPage() {
+  const [step, setStep] = useState('email');
+  const [email, setEmail] = useState('');
+  const [secretCode, setSecretCode] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [adminExists, setAdminExists] = useState(false);
   const { register } = useAuth();
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const ADMIN_EMAIL = 'josephkimuhu66@gmail.com';
+
+  const advanceToCode = () => {
+    if (email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase()) setStep('code');
+    else {
+      setError('Only josephkimuhu66@gmail.com may register as admin.');
+      setStep('email');
+    }
+  };
+
+  const advanceToPassword = () => {
+    if (secretCode.trim().length > 0) setStep('password');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
-    if (formData.secret_code !== 'MTAANI2026') {
+
+    if (secretCode !== 'MTAANI2026') {
       setError('Invalid secret code');
-      setLoading(false);
       return;
     }
+
+    setLoading(true);
     try {
       await register({
-        ...formData,
+        email: email.trim(),
+        full_name: email.split('@')[0].replace(/[^a-zA-Z\s]/g, ' ').trim() || 'Admin',
+        phone: '+254' + Math.floor(100000000 + Math.random() * 900000000),
+        password,
         role: 'admin',
       });
       window.location.href = '/admin-dashboard';
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string' && detail.toLowerCase().includes('email')) {
+        setError('Admin account with this email already exists. Please use the login page.');
+        setAdminExists(true);
+      } else {
+        setError(detail || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h1 className="text-center text-3xl font-bold text-primary">MtaaniConnect</h1>
-          <h2 className="mt-6 text-center text-2xl text-gray-900">Admin Registration</h2>
+          <h1 className="text-center text-3xl font-bold text-white">MtaaniConnect</h1>
+          <h2 className="mt-6 text-center text-2xl text-gray-200">Admin Access</h2>
         </div>
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded">
               {error}
+              {adminExists && (
+                <div className="mt-2">
+                  <Link to="/login" className="text-red-100 underline hover:text-white">
+                    Go to Login Page
+                  </Link>
+                </div>
+              )}
             </div>
           )}
-          <div className="space-y-4">
+
+          <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Full Name</label>
-              <input
-                type="text"
-                name="full_name"
-                required
-                value={formData.full_name}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <label className="block text-sm font-medium text-gray-300">Email address</label>
               <input
                 type="email"
-                name="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); if (step === 'email') advanceToCode(); }}
+                onBlur={advanceToCode}
                 required
-                value={formData.email}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                autoFocus
+                className="mt-1 block w-full px-3 py-2 border border-gray-700 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="admin@example.com"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Phone</label>
-              <input
-                type="tel"
-                name="phone"
-                required
-                value={formData.phone}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Secret Code</label>
-              <input
-                type="password"
-                name="secret_code"
-                required
-                value={formData.secret_code}
-                onChange={handleChange}
-                placeholder="Enter admin secret code"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+
+            {step !== 'email' && (
+              <div className="animate-fadeIn">
+                <label className="block text-sm font-medium text-gray-300">Secret Code</label>
+                <input
+                  type="password"
+                  value={secretCode}
+                  onChange={(e) => { setSecretCode(e.target.value); if (step === 'code') advanceToPassword(); }}
+                  onBlur={advanceToPassword}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-700 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Enter admin secret code"
+                />
+              </div>
+            )}
+
+            {step !== 'email' && step !== 'code' && (
+              <div className="animate-fadeIn">
+                <label className="block text-sm font-medium text-gray-300">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-700 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Create a strong password"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Name and phone will be auto-generated from your email.
+                </p>
+              </div>
+            )}
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary-dark disabled:opacity-50"
-          >
-            {loading ? 'Creating Admin...' : 'Create Admin Account'}
-          </button>
+
+          {step !== 'email' && step !== 'code' && (
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {loading ? 'Creating Admin Account...' : 'Create Admin Account'}
+            </button>
+          )}
         </form>
+
+        <p className="text-center text-gray-400 text-sm">
+          Regular user?{' '}
+          <Link to="/register" className="text-red-400 hover:text-red-300">
+            Sign up here
+          </Link>
+        </p>
       </div>
+
+      <style>{`
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
 
-export default AdminRegisterPage;
+export default AdminLoginPage;

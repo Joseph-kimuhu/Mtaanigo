@@ -9,7 +9,7 @@ import RequestsPage from './pages/RequestsPage';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProviderDashboard from './pages/ProviderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminRegisterPage from './pages/AdminRegisterPage';
+import AdminLoginPage from './pages/AdminRegisterPage';
 import Navbar from './components/Navbar';
 
 function ProtectedRoute({ children, allowedRoles = [] }) {
@@ -32,7 +32,7 @@ function AppContent() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage onSwitchToRegister={() => window.location.href = '/register'} />} />
         <Route path="/register" element={<RegisterPage onSwitchToLogin={() => window.location.href = '/login'} />} />
-        <Route path="/admin-register" element={<AdminRegisterPage />} />
+        <Route path="/admin-login" element={<AdminLoginPage />} />
         <Route path="/services" element={<LandingPage />} />
         <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         <Route path="/request" element={<ProtectedRoute allowedRoles={['customer']}><RequestServicePage /></ProtectedRoute>} />
