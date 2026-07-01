@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react';
 import { categoryService } from '../services/categoryService';
-import { useAuth } from '../context/AuthContext';
 import CategoryCard from '../components/CategoryCard';
 import MapComponent from '../components/MapComponent';
 
 function HomePage({ onNavigate }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState(null);
+  const userLocation = null;
   const [showAvailable, setShowAvailable] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [nearbyProviders, setNearbyProviders] = useState([]);
   const [loadingProviders, setLoadingProviders] = useState(false);
-  const { user } = useAuth();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -26,20 +24,6 @@ function HomePage({ onNavigate }) {
       }
     };
     fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-          });
-        },
-        (err) => console.log('Geolocation error:', err)
-      );
-    }
   }, []);
 
   const handleAvailableNow = async (category) => {
@@ -66,18 +50,6 @@ function HomePage({ onNavigate }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-green-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold">MtaaniGo</h1>
-          <p className="text-green-100 mt-2">Find trusted services near you instantly</p>
-          {user && (
-            <p className="text-green-100 mt-1">
-              Welcome, {user.full_name} | {user.role === 'provider' ? 'Provider' : 'Customer'}
-            </p>
-          )}
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-4 py-8">
         {userLocation && (
           <div className="mb-8 bg-white rounded-lg shadow-md p-4">

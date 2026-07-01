@@ -168,6 +168,7 @@ const css = `
 function ProviderDashboard() {
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [jobFilter, setJobFilter] = useState('all');
   const [toast, setToast] = useState({ msg: '', show: false });
   const [profile, setProfile] = useState(null);
   const [services, setServices] = useState([]);
@@ -553,42 +554,26 @@ function ProviderDashboard() {
 
             <div className="tabs" id="jobTabs">
               <button
-                className="tab-btn active"
-                data-status=""
-                onClick={(e) => {
-                  document.querySelectorAll('#jobTabs .tab-btn').forEach((b) => b.classList.remove('active'));
-                  e.target.classList.add('active');
-                }}
+                className={`tab-btn${jobFilter === 'all' ? ' active' : ''}`}
+                onClick={() => setJobFilter('all')}
               >
                 All
               </button>
               <button
-                className="tab-btn"
-                data-status="accepted"
-                onClick={(e) => {
-                  document.querySelectorAll('#jobTabs .tab-btn').forEach((b) => b.classList.remove('active'));
-                  e.target.classList.add('active');
-                }}
+                className={`tab-btn${jobFilter === 'accepted' ? ' active' : ''}`}
+                onClick={() => setJobFilter('accepted')}
               >
                 In progress
               </button>
               <button
-                className="tab-btn"
-                data-status="completed"
-                onClick={(e) => {
-                  document.querySelectorAll('#jobTabs .tab-btn').forEach((b) => b.classList.remove('active'));
-                  e.target.classList.add('active');
-                }}
+                className={`tab-btn${jobFilter === 'completed' ? ' active' : ''}`}
+                onClick={() => setJobFilter('completed')}
               >
                 Completed
               </button>
               <button
-                className="tab-btn"
-                data-status="declined"
-                onClick={(e) => {
-                  document.querySelectorAll('#jobTabs .tab-btn').forEach((b) => b.classList.remove('active'));
-                  e.target.classList.add('active');
-                }}
+                className={`tab-btn${jobFilter === 'declined' ? ' active' : ''}`}
+                onClick={() => setJobFilter('declined')}
               >
                 Declined
               </button>
@@ -608,7 +593,9 @@ function ProviderDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((r, i) => (
+                  {requests
+                    .filter((r) => jobFilter === 'all' || r.status === jobFilter)
+                    .map((r, i) => (
                     <tr key={i} data-status={r.status}>
                       <td>{r.description}</td>
                       <td>{r.customer?.full_name || '—'}</td>

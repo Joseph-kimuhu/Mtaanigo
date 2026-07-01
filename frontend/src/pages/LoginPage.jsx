@@ -1,19 +1,28 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-function LoginPage({ onSwitchToRegister }) {
+function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
+      const userData = await login(email, password);
+      if (userData.role === 'admin') {
+        navigate('/admin-dashboard');
+      } else if (userData.role === 'provider') {
+        navigate('/provider-dashboard');
+      } else {
+        navigate('/customer-dashboard');
+      }
     } catch (err) {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Login failed. Please check your credentials.');
@@ -73,7 +82,7 @@ function LoginPage({ onSwitchToRegister }) {
           <div className="text-center">
             <button
               type="button"
-              onClick={onSwitchToRegister}
+              onClick={() => navigate('/register')}
               className="text-green-600 hover:text-green-500"
             >
               Don't have an account? Sign up

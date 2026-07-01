@@ -1,32 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requestService } from '../services/requestService';
 import { useAuth } from '../context/AuthContext';
 
 function RequestsPage() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState(null);
   const { user } = useAuth();
+  const fetchRequestsRef = useRef(null);
 
   useEffect(() => {
-    fetchRequests();
+    const doFetch = async () => {
+      try {
+        const data = await requestService.getMyRequests();
+        setRequests(data);
+      } catch (err) {
+        console.error('Failed to fetch requests:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRequestsRef.current = doFetch;
+    doFetch();
   }, []);
-
-  const fetchRequests = async () => {
-    try {
-      const data = await requestService.getMyRequests();
-      setRequests(data);
-    } catch (err) {
-      console.error('Failed to fetch requests:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAccept = async (requestId) => {
     try {
       await requestService.acceptRequest(requestId);
-      fetchRequests();
+      fetchRequestsRef.current?.();
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to accept request');
     }
@@ -35,7 +35,7 @@ function RequestsPage() {
   const handleComplete = async (requestId) => {
     try {
       await requestService.completeRequest(requestId);
-      fetchRequests();
+      fetchRequestsRef.current?.();
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to complete request');
     }

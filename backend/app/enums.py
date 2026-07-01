@@ -19,3 +19,4 @@ class RequestStatus(str, enum.Enum):
     in_progress = "in_progress"
     completed = "completed"
     cancelled = "cancelled"
+    declined = "declined"

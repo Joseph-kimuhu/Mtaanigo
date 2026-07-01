@@ -43,7 +43,23 @@ def get_my_requests(current_user: User = Depends(get_current_active_user), db: S
         provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
         if not provider:
             raise HTTPException(status_code=404, detail="Provider profile not found")
-        requests = db.query(ServiceRequest).filter(ServiceRequest.provider_id == provider.id).all()
+
+        assigned = db.query(ServiceRequest).filter(ServiceRequest.provider_id == provider.id).all()
+
+        service_category_ids = [s.category_id for s in provider.services]
+        incoming = []
+        if service_category_ids:
+            incoming = (
+                db.query(ServiceRequest)
+                .filter(
+                    ServiceRequest.status == RequestStatus.pending,
+                    ServiceRequest.category_id.in_(service_category_ids),
+                    ServiceRequest.provider_id.is_(None),
+                )
+                .all()
+            )
+
+        requests = assigned + incoming
     else:
         requests = db.query(ServiceRequest).all()
     return requests
@@ -59,7 +75,9 @@ def get_request(request_id: int, current_user: User = Depends(get_current_active
         raise HTTPException(status_code=403, detail="Not authorized")
     if current_user.role == "provider":
         provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
-        if not provider or request.provider_id != provider.id:
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider profile not found")
+        if request.provider_id is not None and request.provider_id != provider.id:
             raise HTTPException(status_code=403, detail="Not authorized")
     return request
 
@@ -72,6 +90,10 @@ def update_request(request_id: int, request_update: ServiceRequestUpdate, curren
 
     if current_user.role == "customer" and request.customer_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
+    if current_user.role == "provider":
+        provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
+        if not provider or request.provider_id != provider.id:
+            raise HTTPException(status_code=403, detail="Not authorized")
 
     if request_update.status:
         request.status = RequestStatus(request_update.status)
@@ -106,6 +128,31 @@ def accept_request(request_id: int, current_user: User = Depends(get_current_pro
     request.provider_id = provider.id
     request.status = RequestStatus.accepted
     provider.status = "busy"
+
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+@router.post("/{request_id}/decline", response_model=ServiceRequestResponse)
+def decline_request(request_id: int, current_user: User = Depends(get_current_provider), db: Session = Depends(get_db)):
+    provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    request = db.query(ServiceRequest).filter(ServiceRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if request.status != RequestStatus.pending:
+        raise HTTPException(status_code=400, detail="Can only decline pending requests")
+
+    if request.provider_id is not None:
+        raise HTTPException(status_code=400, detail="Request already assigned")
+
+    request.provider_id = provider.id
+    request.status = RequestStatus.declined
+    provider.status = "online"
 
     db.commit()
     db.refresh(request)

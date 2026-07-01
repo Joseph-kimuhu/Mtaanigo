@@ -1,11 +1,28 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Payment, ServiceRequest, RequestStatus, User, User
+from app.models.models import Payment, ServiceRequest, RequestStatus, User
 from app.schemas.schemas import PaymentCreate, PaymentResponse
 from app.services.auth import get_current_active_user
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
+
+
+@router.get("/", response_model=List[PaymentResponse])
+def list_payments(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    if current_user.role == "customer":
+        payments = (
+            db.query(Payment)
+            .join(ServiceRequest)
+            .filter(ServiceRequest.customer_id == current_user.id)
+            .order_by(Payment.created_at.desc())
+            .all()
+        )
+    else:
+        payments = db.query(Payment).order_by(Payment.created_at.desc()).all()
+    return payments
 
 
 @router.post("/", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)

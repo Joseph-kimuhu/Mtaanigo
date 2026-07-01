@@ -14,6 +14,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# In-memory OTP store (use Redis in production)
+otp_store: dict = {}
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
@@ -74,3 +77,42 @@ async def get_current_provider(current_user: User = Depends(get_current_active_u
     if current_user.role != UserRole.provider:
         raise HTTPException(status_code=403, detail="Not a provider")
     return current_user
+
+
+async def get_current_admin(current_user: User = Depends(get_current_active_user)):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
+def generate_otp():
+    import secrets
+    return str(secrets.randbelow(1000000)).zfill(6)
+
+
+def store_otp(phone: str, otp: str):
+    otp_store[phone] = {"otp": otp, "created_at": datetime.utcnow()}
+
+
+def verify_otp(phone: str, otp: str) -> bool:
+    record = otp_store.get(phone)
+    if not record:
+        return False
+    if (datetime.utcnow() - record["created_at"]).seconds > 300:  # 5 min expiry
+        del otp_store[phone]
+        return False
+    if record["otp"] != otp:
+        return False
+    del otp_store[phone]
+    return True
+
+
+def generate_totp_secret():
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+def verify_totp(otp: str, secret: str) -> bool:
+    import pyotp
+    totp = pyotp.TOTP(secret)
+    return totp.verify(otp, valid_window=1)

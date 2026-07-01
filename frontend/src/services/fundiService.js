@@ -52,7 +52,7 @@ export const fundiService = {
   },
 
   async declineRequest(requestId) {
-    const res = await api.put(`/requests/${requestId}`, { status: 'declined' });
+    const res = await api.post(`/requests/${requestId}/decline`);
     return res.data;
   },
 

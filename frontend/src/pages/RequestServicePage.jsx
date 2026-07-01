@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { requestService } from '../services/requestService';
-import { useAuth } from '../context/AuthContext';
 
 function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvider }) {
   const [formData, setFormData] = useState({
@@ -14,7 +13,6 @@ function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvid
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { user } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,7 +29,7 @@ function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvid
         category_id: parseInt(formData.category_id),
         price_offered: formData.price_offered ? parseFloat(formData.price_offered) : null,
       };
-      const request = await requestService.createRequest(data);
+      await requestService.createRequest(data);
       alert('Service request created successfully!');
       onNavigate('home');
     } catch (err) {

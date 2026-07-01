@@ -151,7 +151,27 @@ def list_payments(db: Session = Depends(get_db), _: User = Depends(get_current_a
     return db.query(Payment).order_by(Payment.created_at.desc()).all()
 
 
-@router.get("/ratings", response_model=List[RatingResponse])
+@router.get("/ratings", response_model=List[dict])
 def list_ratings(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
-    return db.query(Rating).order_by(Rating.created_at.desc()).all()
+    ratings = db.query(Rating).order_by(Rating.created_at.desc()).all()
+    result = []
+    for r in ratings:
+        customer = db.query(User).filter(User.id == r.customer_id).first()
+        provider = db.query(Provider).filter(Provider.id == r.provider_id).first()
+        provider_user = db.query(User).filter(User.id == provider.user_id).first() if provider else None
+        request = db.query(ServiceRequest).filter(ServiceRequest.id == r.request_id).first()
+        result.append({
+            "id": r.id,
+            "rating": r.rating,
+            "comment": r.comment,
+            "created_at": r.created_at,
+            "customer_id": r.customer_id,
+            "provider_id": r.provider_id,
+            "request_id": r.request_id,
+            "customer_name": customer.full_name if customer else None,
+            "provider_name": provider_user.full_name if provider_user else None,
+            "category_name": request.category.name if request and request.category else None,
+            "address": request.address if request else None,
+        })
+    return result
 

@@ -210,3 +210,29 @@ class PaymentResponse(PaymentBase):
 
     class Config:
         from_attributes = True
+
+
+class OTPRequest(BaseModel):
+    phone: str
+
+
+class OTPVerify(BaseModel):
+    phone: str
+    otp: str
+
+
+class AdminMfaVerify(BaseModel):
+    email: str
+    totp: str
+
+
+class AdminInviteCreate(BaseModel):
+    email: str
+
+
+class AdminInviteResponse(BaseModel):
+    invite_token: str
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

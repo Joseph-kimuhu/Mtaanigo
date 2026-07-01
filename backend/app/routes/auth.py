@@ -1,12 +1,24 @@
+from __future__ import annotations
+
+from datetime import timedelta, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import timedelta
+
 from app.database import get_db
 from app.models.models import User, Provider
 from app.enums import UserRole
-from app.schemas.schemas import UserCreate, UserUpdate, UserResponse, Token, ProviderCreate, ProviderUpdate, ProviderResponse
-from app.services.auth import get_password_hash, verify_password, create_access_token, get_current_active_user, get_current_provider
+from app.schemas.schemas import (
+    UserCreate, UserUpdate, UserResponse, Token,
+    ProviderCreate, ProviderUpdate, ProviderResponse,
+    OTPRequest, OTPVerify, AdminMfaVerify, AdminInviteCreate
+)
+from app.services.auth import (
+    get_password_hash, verify_password, create_access_token,
+    get_current_active_user, get_current_provider, get_current_admin,
+    generate_otp, store_otp, verify_otp, generate_totp_secret, verify_totp
+)
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -23,13 +35,14 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Phone already registered")
 
     hashed_password = get_password_hash(user_data.password)
+    is_verified = True  # Auto-verify all users for local development
     db_user = User(
         email=user_data.email,
         phone=user_data.phone,
         full_name=user_data.full_name,
         hashed_password=hashed_password,
         role=user_data.role,
-        is_verified=True,
+        is_verified=is_verified,
     )
     db.add(db_user)
     db.commit()
@@ -40,7 +53,89 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         db.add(db_provider)
         db.commit()
 
+    # Send OTP for customer verification
+    if user_data.role == UserRole.customer:
+        otp = generate_otp()
+        store_otp(user_data.phone, otp)
+        # In production, send via SMS
+        print(f"OTP for {user_data.phone}: {otp}")  # Removed in production
+
     return db_user
+
+
+@router.post("/otp/request")
+def request_otp(otp_request: OTPRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.phone == otp_request.phone).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    otp = generate_otp()
+    store_otp(otp_request.phone, otp)
+    print(f"OTP for {otp_request.phone}: {otp}")  # Removed in production
+    return {"message": "OTP sent"}
+
+
+@router.post("/otp/verify", response_model=Token)
+def verify_otp_endpoint(otp_verify: OTPVerify, db: Session = Depends(get_db)):
+    if not verify_otp(otp_verify.phone, otp_verify.otp):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    user = db.query(User).filter(User.phone == otp_verify.phone).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_verified = True
+    db.commit()
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/admin/invite", response_model=dict)
+def admin_invite(invite_data: AdminInviteCreate, db: Session = Depends(get_db)):
+    admin = db.query(User).filter(
+        User.email == invite_data.email,
+        User.role == UserRole.admin
+    ).first()
+    if not admin:
+        raise HTTPException(status_code=403, detail="Only admins can invite")
+    # In production, send invite link via email
+    return {"message": "Admin invite sent to " + invite_data.email}
+
+
+@router.post("/admin/accept-invite", response_model=Token)
+def admin_accept_invite(
+    email: str, password: str, invite_token: str, db: Session = Depends(get_db)
+):
+    admin_user = db.query(User).filter(
+        User.email == email,
+        User.admin_invite_token == invite_token,
+        User.role == UserRole.admin
+    ).first()
+    if not admin_user:
+        raise HTTPException(status_code=404, detail="Invalid invite token")
+    admin_user.hashed_password = get_password_hash(password)
+    admin_user.is_verified = True
+    admin_user.totp_secret = generate_totp_secret()
+    db.commit()
+    db.refresh(admin_user)
+    return {"access_token": admin_user.totp_secret, "token_type": "temp"}
+
+
+@router.post("/admin/verify-mfa", response_model=Token)
+def admin_verify_mfa(mfa_data: AdminMfaVerify, db: Session = Depends(get_db)):
+    admin_user = db.query(User).filter(
+        User.email == mfa_data.email,
+        User.role == UserRole.admin
+    ).first()
+    if not admin_user or not admin_user.totp_secret:
+        raise HTTPException(status_code=404, detail="Admin not found")
+    if not verify_totp(mfa_data.totp, admin_user.totp_secret):
+        raise HTTPException(status_code=401, detail="Invalid TOTP code")
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": admin_user.email}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/login", response_model=Token)
