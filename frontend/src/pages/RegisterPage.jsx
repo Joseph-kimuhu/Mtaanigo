@@ -175,6 +175,7 @@ function RegisterPage() {
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                 <option value="customer">Find services (Customer)</option>
                 <option value="provider">Offer services (Provider)</option>
+                <option value="admin">Admin (Restricted)</option>
               </select>
             </div>
           </div>

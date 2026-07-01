@@ -34,4 +34,24 @@ export const customerService = {
     const res = await api.get('/payments/');
     return res.data;
   },
+
+  async createPayment(paymentData) {
+    const res = await api.post('/payments/', paymentData);
+    return res.data;
+  },
+
+  async getMessages(requestId) {
+    const res = await api.get(`/messages/request/${requestId}`);
+    return res.data;
+  },
+
+  async sendMessage(requestId, message) {
+    const res = await api.post(`/messages/request/${requestId}`, { message });
+    return res.data;
+  },
+
+  async createRating(ratingData) {
+    const res = await api.post('/ratings/', ratingData);
+    return res.data;
+  },
 };

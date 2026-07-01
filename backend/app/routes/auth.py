@@ -34,8 +34,11 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Phone already registered")
 
+    if user_data.role == UserRole.admin and user_data.email != "josephkimuhu66@gmail.com":
+        raise HTTPException(status_code=403, detail="Admin registration is restricted to josephkimuhu66@gmail.com")
+
     hashed_password = get_password_hash(user_data.password)
-    is_verified = True  # Auto-verify all users for local development
+    is_verified = True
     db_user = User(
         email=user_data.email,
         phone=user_data.phone,
@@ -53,12 +56,10 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         db.add(db_provider)
         db.commit()
 
-    # Send OTP for customer verification
     if user_data.role == UserRole.customer:
         otp = generate_otp()
         store_otp(user_data.phone, otp)
-        # In production, send via SMS
-        print(f"OTP for {user_data.phone}: {otp}")  # Removed in production
+        print(f"OTP for {user_data.phone}: {otp}")
 
     return db_user
 
