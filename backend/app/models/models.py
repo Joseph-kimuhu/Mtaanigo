@@ -142,3 +142,135 @@ class Payment(Base):
     transaction_id = Column(String, nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    license_number = Column(String, nullable=True)
+    is_verified = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    manager = relationship("User")
+
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, nullable=False)
+    discount_percent = Column(Float, nullable=False)
+    expiry_date = Column(DateTime(timezone=True), nullable=True)
+    max_uses = Column(Integer, nullable=True)
+    min_amount = Column(Float, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    target = Column(String, default="all")
+    type = Column(String, default="promotions")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Dispute(Base):
+    __tablename__ = "disputes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("service_requests.id"), nullable=False)
+    raised_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    reason = Column(Text, nullable=False)
+    status = Column(String, default="open")
+    resolution = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    request = relationship("ServiceRequest")
+    raiser = relationship("User", foreign_keys=[raised_by])
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    action = Column(String, nullable=False)
+    entity_type = Column(String, nullable=True)
+    entity_id = Column(Integer, nullable=True)
+    meta = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    admin = relationship("User", foreign_keys=[admin_id])
+
+
+class WithdrawRequest(Base):
+    __tablename__ = "withdraw_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    method = Column(String, default="mpesa")
+    account_number = Column(String, nullable=True)
+    status = Column(String, default="pending")  # pending, approved, rejected, paid
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    provider = relationship("Provider")
+
+
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, nullable=False)
+    value = Column(Text, nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class FraudFlag(Base):
+    __tablename__ = "fraud_flags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, nullable=False)
+    entity_type = Column(String, nullable=True)
+    entity_id = Column(Integer, nullable=True)
+    reason = Column(Text, nullable=False)
+    severity = Column(String, default="medium")  # critical, high, medium, low
+    status = Column(String, default="open")  # open, investigating, resolved, closed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    key = Column(String, unique=True, nullable=False)
+    permissions = Column(Text, nullable=True)  # JSON list
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProviderDocument(Base):
+    __tablename__ = "provider_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    doc_type = Column(String, nullable=False)  # id, business_permit, certificate, license
+    file_url = Column(String, nullable=True)
+    document_number = Column(String, nullable=True)
+    status = Column(String, default="pending")  # pending, approved, rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    provider = relationship("Provider")

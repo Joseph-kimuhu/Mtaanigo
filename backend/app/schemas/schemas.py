@@ -236,3 +236,71 @@ class AdminInviteResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CompanyResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    license_number: Optional[str] = None
+    is_verified: bool
+    is_active: bool
+    manager_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CouponResponse(BaseModel):
+    id: int
+    code: str
+    discount_percent: float
+    expiry_date: Optional[datetime] = None
+    max_uses: Optional[int] = None
+    min_amount: Optional[float] = None
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AnnouncementResponse(BaseModel):
+    id: int
+    title: str
+    message: str
+    target: str
+    type: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DisputeResponse(BaseModel):
+    id: int
+    request_id: int
+    raised_by: int
+    reason: str
+    status: str
+    resolution: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AuditLogResponse(BaseModel):
+    id: int
+    admin_id: int
+    action: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    metadata: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
