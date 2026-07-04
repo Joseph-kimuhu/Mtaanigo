@@ -311,7 +311,7 @@ function ProviderDashboard() {
     }
   };
 
-  const initials = user?.full_name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'OK';
+  const initials = user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'OK';
   const mtaa = profile?.address || 'Nairobi';
 
   const incomingRequests = requests.filter((r) => r.status === 'pending').slice(0, 2);
@@ -406,7 +406,7 @@ function ProviderDashboard() {
           <section className={`section${activeSection === 'overview' ? ' active' : ''}`}>
             <div className="page-head">
               <div>
-                <h1 className="printed">Habari, {user?.full_name?.split(' ')[0] || 'Fundi'}.</h1>
+                <h1 className="printed">Habari, {user?.full_name ? user.full_name.split(' ')[0] : 'Fundi'}.</h1>
                 <p>Here's how your week is shaping up.</p>
               </div>
             </div>

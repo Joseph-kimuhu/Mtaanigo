@@ -11,7 +11,8 @@ from sqlalchemy import func, distinct, case, text
 from app.database import get_db
 from app.models.models import (
     User, Provider, ServiceCategory, ServiceRequest, Payment, Rating,
-    Company, Coupon, Announcement, Dispute, AuditLog, WithdrawRequest
+    Company, Coupon, Announcement, Dispute, AuditLog, WithdrawRequest,
+    SystemSetting, FraudFlag, Role, ProviderDocument
 )
 from app.enums import UserRole, ProviderStatus, RequestStatus
 from app.schemas.schemas import (
@@ -21,6 +22,14 @@ from app.schemas.schemas import (
     ServiceRequestResponse,
     PaymentResponse,
     RatingResponse,
+    ProviderDocumentResponse,
+    SystemSettingResponse,
+    SystemSettingUpdate,
+    FraudFlagResponse,
+    FraudFlagCreate,
+    RoleResponse,
+    RoleCreate,
+    RoleUpdate,
 )
 from app.services.auth import get_current_active_user
 
@@ -1042,3 +1051,124 @@ def update_withdraw_request(
     db.refresh(wr)
     log_action(db, current_user.id, f"withdraw_{status}", "withdraw_request", request_id)
     return {"ok": True, "status": status}
+
+
+# =======================
+# SETTINGS
+# =======================
+
+@router.get("/settings", response_model=List[SystemSettingResponse])
+def list_settings(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    return db.query(SystemSetting).all()
+
+
+@router.put("/settings/{key}", response_model=SystemSettingResponse)
+def update_setting(key: str, payload: SystemSettingUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    setting = db.query(SystemSetting).filter(SystemSetting.key == key).first()
+    if not setting:
+        setting = SystemSetting(key=key, value=payload.value)
+        db.add(setting)
+    else:
+        setting.value = payload.value
+    db.commit()
+    db.refresh(setting)
+    log_action(db, current_user.id, "update_setting", "setting", setting.id, metadata=key)
+    return setting
+
+
+# =======================
+# FRAUD FLAGS
+# =======================
+
+@router.get("/fraud-flags", response_model=List[FraudFlagResponse])
+def list_fraud_flags(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    return db.query(FraudFlag).order_by(FraudFlag.created_at.desc()).all()
+
+
+@router.post("/fraud-flags", response_model=FraudFlagResponse, status_code=status.HTTP_201_CREATED)
+def create_fraud_flag(payload: FraudFlagCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    flag = FraudFlag(**payload.dict())
+    db.add(flag)
+    db.commit()
+    db.refresh(flag)
+    log_action(db, current_user.id, "create_fraud_flag", "fraud_flag", flag.id)
+    return flag
+
+
+@router.patch("/fraud-flags/{flag_id}")
+def update_fraud_flag(flag_id: int, status: str = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    flag = db.query(FraudFlag).filter(FraudFlag.id == flag_id).first()
+    if not flag:
+        raise HTTPException(status_code=404, detail="Fraud flag not found")
+    flag.status = status
+    db.commit()
+    db.refresh(flag)
+    log_action(db, current_user.id, f"update_fraud_{status}", "fraud_flag", flag_id)
+    return {"ok": True, "status": flag.status}
+
+
+# =======================
+# ROLES
+# =======================
+
+@router.get("/roles", response_model=List[RoleResponse])
+def list_roles(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    return db.query(Role).all()
+
+
+@router.post("/roles", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)
+def create_role(payload: RoleCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    exists = db.query(Role).filter(Role.key == payload.key).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Role with this key already exists")
+    role = Role(**payload.dict())
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    log_action(db, current_user.id, "create_role", "role", role.id)
+    return role
+
+
+@router.put("/roles/{role_id}", response_model=RoleResponse)
+def update_role(role_id: int, payload: RoleUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    role = db.query(Role).filter(Role.id == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    for field, value in payload.dict(exclude_unset=True).items():
+        setattr(role, field, value)
+    db.commit()
+    db.refresh(role)
+    log_action(db, current_user.id, "update_role", "role", role_id)
+    return role
+
+
+@router.delete("/roles/{role_id}")
+def delete_role(role_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    role = db.query(Role).filter(Role.id == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    db.delete(role)
+    db.commit()
+    log_action(db, current_user.id, "delete_role", "role", role_id)
+    return {"ok": True}
+
+
+# =======================
+# PROVIDER DOCUMENTS
+# =======================
+
+@router.get("/provider-documents", response_model=List[ProviderDocumentResponse])
+def list_provider_documents(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    return db.query(ProviderDocument).order_by(ProviderDocument.created_at.desc()).all()
+
+
+@router.patch("/provider-documents/{doc_id}")
+def update_provider_document(doc_id: int, status: str = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    doc = db.query(ProviderDocument).filter(ProviderDocument.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    doc.status = status
+    db.commit()
+    db.refresh(doc)
+    log_action(db, current_user.id, f"verify_document_{status}", "provider_document", doc_id)
+    return {"ok": True, "status": doc.status}

@@ -5,7 +5,7 @@ export const authService = {
     const params = new URLSearchParams();
     params.append('username', email);
     params.append('password', password);
-    const response = await api.post('/auth/login', params, {
+    const response = await api.post('/auth/login', params.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     return response.data;
@@ -36,7 +36,9 @@ export const authService = {
     params.append('email', email);
     params.append('password', password);
     params.append('invite_token', inviteToken);
-    const response = await api.post('/auth/admin/accept-invite', params);
+    const response = await api.post('/auth/admin/accept-invite', params.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
     return response.data;
   },
 

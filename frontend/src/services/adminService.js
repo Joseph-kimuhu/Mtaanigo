@@ -307,4 +307,59 @@ export const adminService = {
     const res = await api.patch(`/admin/withdraw-requests/${id}?status=${encodeURIComponent(status)}`);
     return res.data;
   },
+
+  async listSettings() {
+    const res = await api.get('/admin/settings');
+    return res.data;
+  },
+
+  async updateSetting(key, value) {
+    const res = await api.put(`/admin/settings/${encodeURIComponent(key)}`, { value });
+    return res.data;
+  },
+
+  async listFraudFlags() {
+    const res = await api.get('/admin/fraud-flags');
+    return res.data;
+  },
+
+  async createFraudFlag(data) {
+    const res = await api.post('/admin/fraud-flags', data);
+    return res.data;
+  },
+
+  async updateFraudFlag(id, status) {
+    const res = await api.patch(`/admin/fraud-flags/${id}?status=${encodeURIComponent(status)}`);
+    return res.data;
+  },
+
+  async listRoles() {
+    const res = await api.get('/admin/roles');
+    return res.data;
+  },
+
+  async createRole(data) {
+    const res = await api.post('/admin/roles', data);
+    return res.data;
+  },
+
+  async updateRole(id, data) {
+    const res = await api.put(`/admin/roles/${id}`, data);
+    return res.data;
+  },
+
+  async deleteRole(id) {
+    const res = await api.delete(`/admin/roles/${id}`);
+    return res.data;
+  },
+
+  async listProviderDocuments() {
+    const res = await api.get('/admin/provider-documents');
+    return res.data;
+  },
+
+  async updateProviderDocument(id, status) {
+    const res = await api.patch(`/admin/provider-documents/${id}?status=${encodeURIComponent(status)}`);
+    return res.data;
+  },
 };

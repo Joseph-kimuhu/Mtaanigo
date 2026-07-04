@@ -83,10 +83,10 @@ function RequestsPage() {
                     </div>
                     <p className="text-gray-700 mb-2">{request.description}</p>
                     <p className="text-sm text-gray-600 mb-2">📍 {request.address}</p>
-                    {user.role === 'provider' && request.customer && (
+                    {user?.role === 'provider' && request.customer && (
                       <p className="text-sm text-gray-600">👤 Customer: {request.customer.full_name}</p>
                     )}
-                    {user.role === 'customer' && request.provider && (
+                    {user?.role === 'customer' && request.provider && (
                       <p className="text-sm text-gray-600">👤 Provider: {request.provider.full_name}</p>
                     )}
                     {request.final_price && (
@@ -104,7 +104,7 @@ function RequestsPage() {
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  {user.role === 'provider' && request.status === 'pending' && (
+                  {user?.role === 'provider' && request.status === 'pending' && (
                     <button
                       onClick={() => handleAccept(request.id)}
                       className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
@@ -112,7 +112,7 @@ function RequestsPage() {
                       Accept Request
                     </button>
                   )}
-                  {(user.role === 'customer' || user.role === 'provider') && request.status === 'accepted' && (
+                  {(user?.role === 'customer' || user?.role === 'provider') && request.status === 'accepted' && (
                     <button
                       onClick={() => handleComplete(request.id)}
                       className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"

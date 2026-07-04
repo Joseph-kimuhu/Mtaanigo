@@ -304,3 +304,76 @@ class AuditLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProviderDocumentResponse(BaseModel):
+    id: int
+    provider_id: int
+    doc_type: str
+    file_url: Optional[str] = None
+    document_number: Optional[str] = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SystemSettingResponse(BaseModel):
+    id: int
+    key: str
+    value: Optional[str] = None
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SystemSettingUpdate(BaseModel):
+    value: Optional[str] = None
+
+
+class FraudFlagResponse(BaseModel):
+    id: int
+    type: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    reason: str
+    severity: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FraudFlagCreate(BaseModel):
+    type: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    reason: str
+    severity: str = "medium"
+
+
+class RoleResponse(BaseModel):
+    id: int
+    name: str
+    key: str
+    permissions: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RoleCreate(BaseModel):
+    name: str
+    key: str
+    permissions: Optional[str] = None
+
+
+class RoleUpdate(BaseModel):
+    name: Optional[str] = None
+    key: Optional[str] = None
+    permissions: Optional[str] = None
