@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import timedelta, datetime
+import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -25,8 +26,17 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+def _record_login(db: Session, user_id: int, event: str = "login"):
+    try:
+        from app.models.models import AuditLog
+        db.add(AuditLog(admin_id=user_id, action=event, entity_type="auth", meta=json.dumps({"ts": datetime.utcnow().isoformat()})))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: UserCreate, db: Session = Depends(get_db), request: Request = None):
     db_user = db.query(User).filter(User.email == user_data.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -140,7 +150,7 @@ def admin_verify_mfa(mfa_data: AdminMfaVerify, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db), request: Request = None):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -152,6 +162,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=400, detail="User not verified")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
+    try:
+        _record_login(db, user.id, "login")
+    except Exception:
+        db.rollback()
     return {"access_token": access_token, "token_type": "bearer"}
 
 

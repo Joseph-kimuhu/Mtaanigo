@@ -76,6 +76,19 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 async def get_current_provider(current_user: User = Depends(get_current_active_user)):
     if current_user.role != UserRole.provider:
         raise HTTPException(status_code=403, detail="Not a provider")
+    from app.models.models import Provider
+    db = SessionLocal()
+    try:
+        provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
+        if not provider:
+            provider = Provider(user_id=current_user.id, status="offline", is_available=False, rating=0.0, total_ratings=0, total_jobs=0)
+            db.add(provider)
+            db.commit()
+            db.refresh(provider)
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
     return current_user
 
 

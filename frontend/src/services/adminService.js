@@ -362,4 +362,24 @@ export const adminService = {
     const res = await api.patch(`/admin/provider-documents/${id}?status=${encodeURIComponent(status)}`);
     return res.data;
   },
+
+  async contactSupport(data) {
+    const res = await api.post('/admin/contact', data);
+    return res.data;
+  },
+
+  async search(q) {
+    const res = await api.get(`/search?q=${encodeURIComponent(q)}`);
+    return res.data;
+  },
+
+  async getAiQueue() {
+    const res = await api.get('/admin/ai/queue');
+    return res.data;
+  },
+
+  async aiDecision(itemId, decision, note) {
+    const res = await api.post(`/admin/ai/queue/${itemId}/decision`, { decision, note });
+    return res.data;
+  },
 };

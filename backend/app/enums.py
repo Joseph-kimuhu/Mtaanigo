@@ -7,6 +7,26 @@ class UserRole(str, enum.Enum):
     admin = "admin"
 
 
+class DisputeStatus(str, enum.Enum):
+    open = "open"
+    under_review = "under_review"
+    resolved = "resolved"
+    rejected = "rejected"
+
+
+class ProviderStatus(str, enum.Enum):
+    online = "online"
+    offline = "offline"
+    busy = "busy"
+    suspended = "suspended"
+
+
+class VoiceSupportStatus(str, enum.Enum):
+    enabled = "enabled"
+    disabled = "disabled"
+    maintenance = "maintenance"
+
+
 class ProviderStatus(str, enum.Enum):
     offline = "offline"
     online = "online"
@@ -20,3 +40,4 @@ class RequestStatus(str, enum.Enum):
     completed = "completed"
     cancelled = "cancelled"
     declined = "declined"
+    disputed = "disputed"

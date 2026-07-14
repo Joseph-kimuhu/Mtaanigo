@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { adminService } from '../../services/adminService';
 import { fmtKES, StatusDot, StatCard, statusColor, Skeleton } from './shared';
 
@@ -291,6 +291,12 @@ export default function OverviewTab() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  const applyMetrics = (m) => {
+    setMetrics(m);
+    setLastUpdated(new Date());
+    setLoading(false);
+  };
+
   const fetchAll = () => {
     setLoading(true);
     Promise.all([
@@ -308,6 +314,34 @@ export default function OverviewTab() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = '/api/admin/metrics/stream';
+    const es = new EventSource(url);
+    sseRef.current = es;
+
+    es.onmessage = (evt) => {
+      try {
+        const parsed = JSON.parse(evt.data);
+        if (parsed?.data) applyMetrics(parsed.data);
+      } catch (e) {
+        console.warn('SSE parse error', e);
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+    };
+
+    return () => {
+      es.close();
+    };
+  }, []);
+
+  const refresh = () => {
+    fetchAll();
+  };
 
   const cards = [
     { label: 'Total Users',       value: metrics?.total_users,       icon: STAT_ICONS[0], trend: STAT_TRENDS[0] },
@@ -333,7 +367,7 @@ export default function OverviewTab() {
         <div className="flex items-center gap-4">
           <LiveClock />
           <button
-            onClick={fetchAll}
+            onClick={refresh}
             disabled={loading}
             className="flex items-center gap-1.5 text-[12px] font-landing-sans font-semibold text-ink/50 hover:text-forest-600 transition-colors disabled:opacity-40 bg-white border border-ink/[0.08] px-3 py-1.5 rounded-xl"
           >

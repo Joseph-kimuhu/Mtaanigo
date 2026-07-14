@@ -72,8 +72,19 @@ function RegisterPage() {
     setLoading(true);
     try {
       await register(formData);
-      setStep('otp');
-      setError('');
+      if (formData.role === 'provider' || formData.role === 'admin') {
+        const userData = await login(formData.email, formData.password);
+        if (userData.role === 'admin') {
+          navigate('/admin-dashboard');
+        } else if (userData.role === 'provider') {
+          navigate('/provider-dashboard');
+        } else {
+          navigate('/customer-dashboard');
+        }
+      } else {
+        setStep('otp');
+        setError('');
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
     } finally {

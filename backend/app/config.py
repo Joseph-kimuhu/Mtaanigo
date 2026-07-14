@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     MPESA_CONSUMER_SECRET: str = ""
     MPESA_SHORTCODE: str = ""
     MPESA_PASSKEY: str = ""
+    SMTP_HOST: str = ""
+    SMTP_PORT: str = ""
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
 
 
 settings = Settings()

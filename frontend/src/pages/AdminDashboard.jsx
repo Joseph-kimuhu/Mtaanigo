@@ -164,6 +164,9 @@ export default function AdminDashboard() {
   const [activeNav, setActiveNav] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [overviewKey, setOverviewKey] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [searching, setSearching] = useState(false);
 
   const title = TITLE_MAP[activeNav] || 'Dashboard';
   const subtitle = SUBTITLE_MAP[activeNav] || '';
@@ -172,6 +175,20 @@ export default function AdminDashboard() {
     setActiveNav(key);
     if (key === 'overview') setOverviewKey(k => k + 1);
     setSidebarOpen(false);
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const data = await adminService.search(searchQuery.trim());
+      setSearchResults(data);
+    } catch (err) {
+      console.error('Search failed', err);
+    } finally {
+      setSearching(false);
+    }
   };
 
   return (
@@ -239,6 +256,102 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <form onSubmit={handleSearch} className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search users, providers, bookings…"
+                className="h-9 w-56 rounded-lg border border-ink/[0.08] bg-white px-3 text-[13px] font-landing-sans focus:outline-none focus:ring-2 focus:ring-forest-500"
+              />
+              <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-ink/40 hover:text-ink transition-colors" aria-label="Search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              </button>
+            </form>
+
+            {/* Search overlay */}
+            {searchResults && (
+              <div className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-24 px-4" onClick={(e) => { if (e.target === e.currentTarget) setSearchResults(null); }}>
+                <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-ink/[0.08] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-ink/[0.06] flex items-center justify-between">
+                    <p className="text-[13px] font-landing-sans font-semibold text-ink">Search results for "{searchQuery}"</p>
+                    <button onClick={() => setSearchResults(null)} className="text-mute hover:text-ink text-xs font-landing-sans uppercase tracking-wide">Close</button>
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto p-5 space-y-4">
+                    {searching && <p className="text-mute text-sm font-landing-sans text-center py-6">Searching…</p>}
+                    {!searching && !searchResults && <p className="text-mute text-sm font-landing-sans text-center py-6">No results.</p>}
+                    {!searching && searchResults && (
+                      <>
+                        {searchResults.users?.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-landing-sans font-semibold text-mute uppercase tracking-wide mb-2">Users</p>
+                            <div className="space-y-2">
+                              {searchResults.users.map(u => (
+                                <div key={u.id} className="flex items-center justify-between rounded-xl border border-ink/[0.06] px-3 py-2 text-[13px]">
+                                  <span className="font-landing-sans font-medium text-ink/90">{u.full_name}</span>
+                                  <span className="text-mute text-xs">{u.email}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {searchResults.providers?.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-landing-sans font-semibold text-mute uppercase tracking-wide mb-2">Providers</p>
+                            <div className="space-y-2">
+                              {searchResults.providers.map(p => (
+                                <div key={p.id} className="flex items-center justify-between rounded-xl border border-ink/[0.06] px-3 py-2 text-[13px]">
+                                  <span className="font-landing-sans font-medium text-ink/90">{p.full_name}</span>
+                                  <span className="text-mute text-xs">{p.address}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {searchResults.services?.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-landing-sans font-semibold text-mute uppercase tracking-wide mb-2">Services</p>
+                            <div className="space-y-2">
+                              {searchResults.services.map(s => (
+                                <div key={s.id} className="flex items-center justify-between rounded-xl border border-ink/[0.06] px-3 py-2 text-[13px]">
+                                  <span className="font-landing-sans font-medium text-ink/90">{s.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {searchResults.companies?.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-landing-sans font-semibold text-mute uppercase tracking-wide mb-2">Companies</p>
+                            <div className="space-y-2">
+                              {searchResults.companies.map(c => (
+                                <div key={c.id} className="flex items-center justify-between rounded-xl border border-ink/[0.06] px-3 py-2 text-[13px]">
+                                  <span className="font-landing-sans font-medium text-ink/90">{c.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {searchResults.bookings?.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-landing-sans font-semibold text-mute uppercase tracking-wide mb-2">Bookings</p>
+                            <div className="space-y-2">
+                              {searchResults.bookings.map(b => (
+                                <div key={b.id} className="flex items-center justify-between rounded-xl border border-ink/[0.06] px-3 py-2 text-[13px]">
+                                  <span className="font-landing-sans font-medium text-ink/90">{b.description}</span>
+                                  <span className="text-mute text-xs">{b.status}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Notification bell */}
             <button className="relative w-9 h-9 rounded-xl bg-white border border-ink/[0.08] flex items-center justify-center text-ink/60 hover:text-ink transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" /></svg>

@@ -1172,3 +1172,159 @@ def update_provider_document(doc_id: int, status: str = Query(...), db: Session 
     db.refresh(doc)
     log_action(db, current_user.id, f"verify_document_{status}", "provider_document", doc_id)
     return {"ok": True, "status": doc.status}
+
+
+# =======================
+# CONTACT / SUPPORT
+# =======================
+
+class ContactSupport(BaseModel):
+    subject: str = "MtaaniGo Support"
+    message: str
+    to: str = "ops@mtaanigo.com"
+
+
+@router.post("/contact")
+def contact_support(payload: ContactSupport, current_user: User = Depends(get_current_admin_user)):
+    from app.config import settings
+    import smtplib
+    from email.mime.text import MIMEText
+
+    subject = payload.subject or "MtaaniGo Support"
+    body = payload.message
+    to_email = payload.to or getattr(settings, "support_email", "ops@mtaanigo.com")
+    smtp_host = getattr(settings, "smtp_host", None)
+    smtp_port = getattr(settings, "smtp_port", None)
+    smtp_user = getattr(settings, "smtp_user", None)
+    smtp_password = getattr(settings, "smtp_password", None)
+    smtp_from = getattr(settings, "smtp_from", None)
+
+    if not smtp_host or not smtp_port:
+        raise HTTPException(status_code=500, detail="SMTP not configured")
+
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = smtp_from or smtp_user or to_email
+    msg["To"] = to_email
+
+    try:
+        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
+            if smtp_user and smtp_password:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {exc}")
+
+    log_action(db, current_user.id, "contact_support", "support", meta=to_email)
+    return {"ok": True, "sent_to": to_email}
+
+
+# =======================
+# SEARCH
+# =======================
+
+@router.get("/search")
+def search(q: str = Query("", max_length=120), db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    results = {"users": [], "providers": [], "services": [], "companies": [], "bookings": []}
+    term = f"%{q}%"
+    if term == "%%":
+        return results
+
+    users = db.query(User).filter(
+        or_(User.full_name.ilike(term), User.email.ilike(term), User.phone.ilike(term))
+    ).limit(8).all()
+    results["users"] = [
+        {"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role.value}
+        for u in users
+    ]
+
+    providers = db.query(Provider).join(User).filter(User.full_name.ilike(term)).limit(8).all()
+    results["providers"] = [
+        {
+            "id": p.id,
+            "full_name": p.user.full_name,
+            "address": p.address,
+            "status": p.status.value if hasattr(p.status, "value") else p.status,
+        }
+        for p in providers
+    ]
+
+    services = db.query(ServiceCategory).filter(ServiceCategory.name.ilike(term)).limit(8).all()
+    results["services"] = [
+        {"id": s.id, "name": s.name, "description": s.description} for s in services
+    ]
+
+    companies = db.query(Company).filter(Company.name.ilike(term)).limit(8).all()
+    results["companies"] = [
+        {"id": c.id, "name": c.name, "description": c.description} for c in companies
+    ]
+
+    bookings = db.query(ServiceRequest).filter(
+        or_(ServiceRequest.description.ilike(term), ServiceRequest.address.ilike(term))
+    ).limit(8).all()
+    results["bookings"] = [
+        {
+            "id": b.id,
+            "description": b.description,
+            "status": b.status.value if hasattr(b.status, "value") else b.status,
+            "address": b.address,
+        }
+        for b in bookings
+    ]
+
+    return results
+
+
+# =======================
+# AI REVIEW QUEUE
+# =======================
+
+class AiDecision(BaseModel):
+    decision: str
+    note: Optional[str] = None
+
+
+@router.get("/ai/queue")
+def get_ai_review_queue(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    pending_reviews = (
+        db.query(ServiceRequest)
+        .filter(
+            ServiceRequest.status.in_([RequestStatus.disputed, RequestStatus.pending])
+        )
+        .order_by(ServiceRequest.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "description": r.description,
+            "status": r.status.value if hasattr(r.status, "value") else r.status,
+            "address": r.address,
+            "category_id": r.category_id,
+            "price_offered": r.price_offered,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in pending_reviews
+    ]
+
+
+@router.post("/ai/queue/{item_id}/decision")
+def ai_review_decision(item_id: int, payload: AiDecision, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin_user)):
+    request = db.query(ServiceRequest).filter(ServiceRequest.id == item_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Item not found")
+    decision = (payload.decision or "").lower().strip()
+    if decision not in {"approve", "reject", "flag"}:
+        raise HTTPException(status_code=400, detail="Invalid decision")
+    if decision == "approve":
+        request.status = RequestStatus.accepted
+    elif decision == "reject":
+        request.status = RequestStatus.declined
+    else:
+        request.status = RequestStatus.disputed
+    db.commit()
+    db.refresh(request)
+    log_action(db, current_user.id, "ai_review_decision", "request", item_id, meta=payload.note or decision)
+    return {"ok": True, "status": request.status.value if hasattr(request.status, "value") else request.status}
