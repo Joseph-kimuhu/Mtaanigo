@@ -3,9 +3,12 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Payment, ServiceRequest, RequestStatus, User
+from app.models.models import Payment, ServiceRequest, RequestStatus, User, Provider
 from app.schemas.schemas import PaymentCreate, PaymentResponse
 from app.services.auth import get_current_active_user
+from app.services.commission import get_commission_rate, compute_commission
+from app.events import event_manager
+from datetime import datetime
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
@@ -23,6 +26,31 @@ def list_payments(current_user: User = Depends(get_current_active_user), db: Ses
     else:
         payments = db.query(Payment).order_by(Payment.created_at.desc()).all()
     return payments
+
+
+def _finalize_payment(payment: Payment, db: Session):
+    request = db.query(ServiceRequest).filter(ServiceRequest.id == payment.request_id).first()
+    amount = payment.amount or (request.final_price if request else None) or (request.price_offered if request else None) or 0.0
+    payment.amount = amount
+    if request and not request.final_price:
+        request.final_price = amount
+
+    rate = get_commission_rate(db)
+    commission = compute_commission(amount, rate)
+    payment.commission = commission
+    payment.status = "completed"
+    payment.paid_at = datetime.utcnow()
+
+    if request and request.provider_id:
+        provider = db.query(Provider).filter(Provider.id == request.provider_id).first()
+        if provider:
+            provider.earnings = (provider.earnings or 0.0) + (amount - commission)
+            provider.total_jobs = (provider.total_jobs or 0) + 1
+
+    try:
+        event_manager.publish("metrics", '{"type": "payment"}')
+    except Exception:
+        pass
 
 
 @router.post("/", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
@@ -48,6 +76,12 @@ def create_payment(payment_data: PaymentCreate, current_user: User = Depends(get
         status="pending",
     )
     db.add(payment)
+    db.commit()
+    db.refresh(payment)
+
+    # Simulate successful payment capture (M-Pesa callback) so the workflow
+    # completes end-to-end: earnings, commission and revenue all update.
+    _finalize_payment(payment, db)
     db.commit()
     db.refresh(payment)
     return payment

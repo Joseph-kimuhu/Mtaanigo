@@ -32,6 +32,7 @@ from app.schemas.schemas import (
     RoleUpdate,
 )
 from app.services.auth import get_current_active_user
+from app.services.commission import get_commission_rate
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -42,7 +43,7 @@ async def get_current_admin_user(current_user: User = Depends(get_current_active
     return current_user
 
 
-async def log_action(db: Session, admin_id: int, action: str, entity_type: str = None, entity_id: int = None, metadata: str = None):
+def log_action(db: Session, admin_id: int, action: str, entity_type: str = None, entity_id: int = None, metadata: str = None):
     db.add(AuditLog(admin_id=admin_id, action=action, entity_type=entity_type, entity_id=entity_id, meta=metadata))
     db.commit()
 
@@ -70,7 +71,7 @@ def get_metrics(db: Session = Depends(get_db), _: User = Depends(get_current_adm
     month_revenue = db.query(func.coalesce(func.sum(Payment.amount), 0.0)).filter(Payment.status.in_(["completed", "paid"])).filter(Payment.paid_at.isnot(None), Payment.paid_at >= thirty_days_ago).scalar()
 
     total_revenue = db.query(func.coalesce(func.sum(Payment.amount), 0.0)).filter(Payment.status.in_(["completed", "paid"])).scalar()
-    commission_earned = float(total_revenue or 0.0) * 0.15
+    commission_earned = db.query(func.coalesce(func.sum(Payment.commission), 0.0)).filter(Payment.status.in_(["completed", "paid"])).scalar() or 0.0
 
     return {
         "total_users": int(total_users),
@@ -534,7 +535,7 @@ def get_earnings(period: str = "month", db: Session = Depends(get_db), _: User =
 
     revenue = db.query(func.coalesce(func.sum(Payment.amount), 0.0)).filter(Payment.status.in_(["completed", "paid"])).filter(Payment.paid_at >= start).scalar()
     payouts = db.query(func.coalesce(func.sum(Payment.amount), 0.0)).filter(Payment.status == "completed").filter(Payment.paid_at >= start).scalar()
-    commission = float(revenue or 0.0) * 0.15
+    commission = db.query(func.coalesce(func.sum(Payment.commission), 0.0)).filter(Payment.status.in_(["completed", "paid"])).filter(Payment.paid_at >= start).scalar() or 0.0
     return {
         "period": period,
         "revenue": float(revenue or 0.0),
@@ -568,12 +569,13 @@ def export_earnings(format: str = "csv", db: Session = Depends(get_db), _: User 
 
 @router.get("/commissions")
 def get_commissions(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    rate = get_commission_rate(db)
     categories = db.query(ServiceCategory).all()
     return [
         {
             "category_id": c.id,
             "category_name": c.name,
-            "commission_percent": 15.0,
+            "commission_percent": rate,
             "is_active": c.is_active,
         }
         for c in categories
@@ -693,6 +695,12 @@ def refund_dispute(dispute_id: int, db: Session = Depends(get_db), current_user:
         req.status = RequestStatus.cancelled
     payment = db.query(Payment).filter(Payment.request_id == dispute.request_id).first()
     if payment:
+        if payment.status in ("completed", "paid"):
+            if req and req.provider_id:
+                provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
+                if provider:
+                    provider.earnings = max(0.0, (provider.earnings or 0.0) - (payment.amount - (payment.commission or 0.0)))
+                    provider.total_jobs = max(0, (provider.total_jobs or 0) - 1)
         payment.status = "refunded"
     dispute.status = "resolved"
     db.commit()
@@ -981,6 +989,13 @@ def refund_payment(payment_id: int, db: Session = Depends(get_db), current_user:
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
+    if payment.status in ("completed", "paid"):
+        req = db.query(ServiceRequest).filter(ServiceRequest.id == payment.request_id).first()
+        if req and req.provider_id:
+            provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
+            if provider:
+                provider.earnings = max(0.0, (provider.earnings or 0.0) - (payment.amount - (payment.commission or 0.0)))
+                provider.total_jobs = max(0, (provider.total_jobs or 0) - 1)
     payment.status = "refunded"
     db.commit()
     db.refresh(payment)

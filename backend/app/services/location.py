@@ -22,6 +22,21 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return distance
 
 
+def _trade_name(db, provider, category_id: int = None) -> str:
+    """Compose a customer-facing name like 'Electrician Mary' from the
+    provider's trade (service category) plus their full name."""
+    category_name = None
+    if category_id:
+        category = db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+        category_name = category.name if category else None
+    if not category_name and provider.services:
+        category = provider.services[0].category
+        category_name = category.name if category else None
+    if category_name:
+        return f"{category_name} {provider.user.full_name}"
+    return provider.user.full_name
+
+
 def get_nearby_providers(db, lat: float, lon: float, radius_km: float = 10, category_id: int = None):
     """Get providers within radius, optionally filtered by category."""
     query = db.query(Provider).filter(Provider.is_available == True)
@@ -43,6 +58,7 @@ def get_nearby_providers(db, lat: float, lon: float, radius_km: float = 10, cate
                     "id": provider.id,
                     "user_id": provider.user_id,
                     "full_name": provider.user.full_name,
+                    "display_name": _trade_name(db, provider, category_id),
                     "profile_photo": provider.user.profile_photo,
                     "bio": provider.bio,
                     "rating": provider.rating,
@@ -79,6 +95,7 @@ def get_available_now_providers(db, lat: float, lon: float, category_id: int, ra
                     "id": provider.id,
                     "user_id": provider.user_id,
                     "full_name": provider.user.full_name,
+                    "display_name": _trade_name(db, provider, category_id),
                     "profile_photo": provider.user.profile_photo,
                     "bio": provider.bio,
                     "rating": provider.rating,

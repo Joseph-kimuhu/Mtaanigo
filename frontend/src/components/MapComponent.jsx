@@ -51,7 +51,7 @@ function MapComponent({ center, providers, userLocation, radiusKm = 5 }) {
         >
           <Popup>
             <div>
-              <strong>{provider.full_name}</strong><br />
+              <strong>{provider.display_name || provider.full_name}</strong><br />
               ⭐ {provider.rating} ({provider.total_ratings} reviews)<br />
               📍 {provider.distance_km} km away<br />
               Status: {provider.status}

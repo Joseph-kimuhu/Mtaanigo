@@ -29,4 +29,18 @@ export const categoryService = {
     const response = await api.post(`/categories/${categoryId}/services`, serviceData);
     return response.data;
   },
+
+  async getProvidersByCategory(categoryId, params = {}) {
+    const response = await api.get('/providers/', {
+      params: { category_id: categoryId, ...params },
+    });
+    return response.data;
+  },
+
+  async getProviderDetail(providerId, lat = null, lon = null) {
+    const response = await api.get(`/providers/${providerId}`, {
+      params: lat != null && lon != null ? { lat, lon } : {},
+    });
+    return response.data;
+  },
 };

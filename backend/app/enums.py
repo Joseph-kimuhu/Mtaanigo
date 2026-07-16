@@ -36,6 +36,8 @@ class ProviderStatus(str, enum.Enum):
 class RequestStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
+    on_the_way = "on_the_way"
+    arrived = "arrived"
     in_progress = "in_progress"
     completed = "completed"
     cancelled = "cancelled"

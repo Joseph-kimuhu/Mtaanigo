@@ -48,7 +48,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db), request: Requ
         raise HTTPException(status_code=403, detail="Admin registration is restricted to josephkimuhu66@gmail.com")
 
     hashed_password = get_password_hash(user_data.password)
-    is_verified = True
+    is_verified = user_data.role != UserRole.provider
     db_user = User(
         email=user_data.email,
         phone=user_data.phone,
@@ -181,6 +181,9 @@ def update_me(user_update: UserUpdate, current_user: User = Depends(get_current_
     if user_update.profile_photo:
         current_user.profile_photo = user_update.profile_photo
     if user_update.phone:
+        existing = db.query(User).filter(User.phone == user_update.phone, User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone already registered")
         current_user.phone = user_update.phone
     db.commit()
     db.refresh(current_user)

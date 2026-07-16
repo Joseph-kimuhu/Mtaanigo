@@ -10,6 +10,7 @@ from app.enums import UserRole
 from app.schemas.schemas import ServiceRequestCreate, ServiceRequestUpdate, ServiceRequestResponse
 from app.services.auth import get_current_active_user, get_current_provider
 from datetime import datetime
+from app.events import event_manager
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
 
@@ -179,6 +180,73 @@ def complete_request(request_id: int, current_user: User = Depends(get_current_a
         provider = db.query(Provider).filter(Provider.id == request.provider_id).first()
         provider.status = "online"
 
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+@router.post("/{request_id}/on-the-way", response_model=ServiceRequestResponse)
+def mark_on_the_way(request_id: int, current_user: User = Depends(get_current_provider), db: Session = Depends(get_db)):
+    provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    request = db.query(ServiceRequest).filter(ServiceRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if request.provider_id != provider.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if request.status not in (RequestStatus.accepted, RequestStatus.on_the_way, RequestStatus.arrived):
+        raise HTTPException(status_code=400, detail="Request must be accepted first")
+
+    request.status = RequestStatus.on_the_way
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+@router.post("/{request_id}/arrived", response_model=ServiceRequestResponse)
+def mark_arrived(request_id: int, current_user: User = Depends(get_current_provider), db: Session = Depends(get_db)):
+    provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    request = db.query(ServiceRequest).filter(ServiceRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if request.provider_id != provider.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if request.status not in (RequestStatus.accepted, RequestStatus.on_the_way, RequestStatus.arrived, RequestStatus.in_progress):
+        raise HTTPException(status_code=400, detail="Request must be accepted or on the way first")
+
+    request.status = RequestStatus.arrived
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+@router.post("/{request_id}/start", response_model=ServiceRequestResponse)
+def start_job(request_id: int, current_user: User = Depends(get_current_provider), db: Session = Depends(get_db)):
+    provider = db.query(Provider).filter(Provider.user_id == current_user.id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    request = db.query(ServiceRequest).filter(ServiceRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if request.provider_id != provider.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if request.status not in (RequestStatus.accepted, RequestStatus.on_the_way, RequestStatus.arrived):
+        raise HTTPException(status_code=400, detail="Request must be accepted, on the way or arrived first")
+
+    request.status = RequestStatus.in_progress
+    request.started_at = datetime.utcnow()
     db.commit()
     db.refresh(request)
     return request

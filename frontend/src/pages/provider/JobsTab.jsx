@@ -45,6 +45,19 @@ export default function JobsTab({ requests, onRefresh }) {
     finally { setBusy(b => ({ ...b, [key]: false })); }
   };
 
+  const updateStatus = async (id, status) => {
+    setBusy(b => ({ ...b, [status + id]: true }));
+    try {
+      await requestService.updateRequest(id, { status });
+      showToast('Done!');
+      onRefresh();
+    } catch (e) {
+      showToast(e?.response?.data?.detail || 'Action failed');
+    } finally {
+      setBusy(b => ({ ...b, [status + id]: false }));
+    }
+  };
+
   const currentStatuses = TABS.find(t => t.key === tab)?.statuses || [];
   const filtered = requests.filter(r => currentStatuses.includes(r.status));
 
@@ -97,7 +110,38 @@ export default function JobsTab({ requests, onRefresh }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Btn variant="outline" size="sm" onClick={() => setSelected(r)}>View</Btn>
 
-                  {(r.status === 'accepted' || r.status === 'in_progress') && (
+                  {r.status === 'accepted' && (
+                    <>
+                      {r.address && (
+                        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}`} target="_blank" rel="noopener noreferrer">
+                          <Btn variant="outline" size="sm">🗺️ Navigate</Btn>
+                        </a>
+                      )}
+                      {r.customer?.phone && (
+                        <a href={`tel:${r.customer.phone}`}><Btn variant="outline" size="sm">📞 Call</Btn></a>
+                      )}
+                      <Btn variant="primary" size="sm" disabled={busy[`on_the_way${r.id}`]} onClick={() => updateStatus(r.id, 'on_the_way')}>
+                        🚗 On the way
+                      </Btn>
+                      <Btn variant="red" size="sm" disabled={busy[`x${r.id}`]} onClick={() => act(fundiService.declineRequest, r.id, `x${r.id}`)}>
+                        Cancel
+                      </Btn>
+                    </>
+                  )}
+
+                  {r.status === 'on_the_way' && (
+                    <Btn variant="primary" size="sm" disabled={busy[`arrived${r.id}`]} onClick={() => updateStatus(r.id, 'arrived')}>
+                      📍 I've arrived
+                    </Btn>
+                  )}
+
+                  {r.status === 'arrived' && (
+                    <Btn variant="primary" size="sm" disabled={busy[`in_progress${r.id}`]} onClick={() => updateStatus(r.id, 'in_progress')}>
+                      🔧 Start job
+                    </Btn>
+                  )}
+
+                  {(r.status === 'in_progress') && (
                     <>
                       {r.address && (
                         <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}`} target="_blank" rel="noopener noreferrer">
@@ -115,12 +159,6 @@ export default function JobsTab({ requests, onRefresh }) {
 
                   {r.status === 'completed' && (
                     <Btn variant="outline" size="sm" onClick={() => downloadReceipt(r)}>🧾 Receipt</Btn>
-                  )}
-
-                  {r.status === 'accepted' && (
-                    <Btn variant="red" size="sm" disabled={busy[`x${r.id}`]} onClick={() => act(fundiService.declineRequest, r.id, `x${r.id}`)}>
-                      Cancel
-                    </Btn>
                   )}
                 </div>
               </Card>

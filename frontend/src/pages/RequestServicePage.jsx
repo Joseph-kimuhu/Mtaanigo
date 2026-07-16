@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { requestService } from '../services/requestService';
+import { categoryService } from '../services/categoryService';
 
 function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvider }) {
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     category_id: preSelectedCategory?.id || '',
     description: '',
@@ -11,12 +14,40 @@ function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvid
     price_offered: '',
     scheduled_at: '',
   });
+  const [category, setCategory] = useState(preSelectedCategory || null);
+  const [provider, setProvider] = useState(preSelectedProvider || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const categoryId = searchParams.get('category');
+    const providerId = searchParams.get('provider');
+
+    if (categoryId && !category) {
+      categoryService.getCategory(categoryId)
+        .then((c) => setCategory(c))
+        .catch(() => {});
+      setFormData((prev) => ({ ...prev, category_id: parseInt(categoryId, 10) }));
+    }
+
+    if (categoryId && providerId) {
+      categoryService.getProvidersByCategory(categoryId)
+        .then((list) => {
+          const match = list.find((p) => String(p.id) === String(providerId));
+          if (match) setProvider(match);
+        })
+        .catch(() => {});
+    }
+  }, [searchParams, category]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const goHome = () => {
+    if (onNavigate) onNavigate('home');
+    else window.location.href = '/customer-dashboard';
   };
 
   const handleSubmit = async (e) => {
@@ -30,8 +61,8 @@ function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvid
         price_offered: formData.price_offered ? parseFloat(formData.price_offered) : null,
       };
       await requestService.createRequest(data);
-      alert('Service request created successfully!');
-      onNavigate('home');
+      alert('Service request created successfully! The provider will be notified.');
+      goHome();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create request');
     } finally {
@@ -54,37 +85,39 @@ function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvid
     }
   };
 
+  const catName = category?.name || provider?.services?.[0] || 'this service';
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <button
-          onClick={() => onNavigate('home')}
+          onClick={goHome}
           className="mb-4 text-green-600 hover:text-green-700"
         >
-          ← Back to Home
+          ← Back
         </button>
         <div className="bg-white rounded-lg shadow-md p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Request Service</h1>
 
-          {preSelectedProvider && (
+          {provider && (
             <div className="mb-6 p-4 bg-green-50 rounded-lg">
               <h3 className="font-semibold text-gray-900">Selected Provider</h3>
-              <p className="text-sm text-gray-600">{preSelectedProvider.full_name}</p>
-              <p className="text-sm text-gray-600">⭐ {preSelectedProvider.rating}</p>
+              <p className="text-sm text-gray-600">{provider.display_name || provider.full_name}</p>
+              <p className="text-sm text-gray-600">⭐ {provider.rating || 0} ({provider.total_ratings || 0} reviews)</p>
             </div>
           )}
 
-          {preSelectedCategory && (
+          {category && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="font-semibold text-gray-900">
-                {preSelectedCategory.icon} {preSelectedCategory.name}
+                {category.icon} {category.name}
               </h3>
-              <p className="text-sm text-gray-600">{preSelectedCategory.description}</p>
+              <p className="text-sm text-gray-600">{category.description}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!preSelectedCategory && (
+            {!category && (
               <div>
                 <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
                   Service Category
@@ -119,7 +152,7 @@ function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvid
                 value={formData.description}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                placeholder="E.g., I need a plumber to fix a leaking kitchen tap..."
+                placeholder={`E.g., I need a ${catName.toLowerCase()} to help with...`}
               />
             </div>
 
@@ -189,7 +222,7 @@ function RequestServicePage({ onNavigate, preSelectedCategory, preSelectedProvid
               disabled={loading}
               className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 font-medium"
             >
-              {loading ? 'Submitting...' : 'Submit Request'}
+              {loading ? 'Submitting...' : `Book ${catName}`}
             </button>
           </form>
         </div>

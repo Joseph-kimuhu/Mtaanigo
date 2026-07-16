@@ -6,12 +6,13 @@ from sqlalchemy import or_
 
 import asyncio
 
-from app.database import engine, Base, get_db
-from app.routes import auth, categories, requests, messages, ratings, payments, admin, provider
+from app.database import engine, Base, get_db, run_migrations
+from app.routes import auth, categories, requests, messages, ratings, payments, admin, provider, providers
 from app.events import event_manager
 from app.models.models import User, Provider, ServiceCategory, ServiceRequest, Rating, Company
 
 Base.metadata.create_all(bind=engine)
+run_migrations()
 
 app = FastAPI(title="MtaaniGo API", version="1.0.0", description="Location-based service marketplace for Kenya")
 
@@ -32,6 +33,7 @@ app.include_router(ratings.router)
 app.include_router(payments.router)
 app.include_router(admin.router)
 app.include_router(provider.router)
+app.include_router(providers.router)
 
 
 @app.get("/")
@@ -44,7 +46,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/admin/metrics/stream")
+@app.get("/api/admin/metrics/stream")
 async def metrics_stream():
     async def event_stream():
         queue = event_manager.subscribe("metrics")
@@ -83,6 +85,7 @@ def search(q: str = "", db: Session = Depends(get_db)):
         {
             "id": p.id,
             "full_name": p.user.full_name,
+            "display_name": (f"{p.services[0].category.name} {p.user.full_name}" if p.services and p.services[0].category else p.user.full_name),
             "address": p.address,
             "status": p.status.value if hasattr(p.status, "value") else p.status,
         }

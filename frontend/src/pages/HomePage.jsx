@@ -6,7 +6,7 @@ import MapComponent from '../components/MapComponent';
 function HomePage({ onNavigate }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const userLocation = null;
+  const [userLocation, setUserLocation] = useState({ lat: -1.2921, lon: 36.8219 });
   const [showAvailable, setShowAvailable] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [nearbyProviders, setNearbyProviders] = useState([]);
@@ -24,6 +24,16 @@ function HomePage({ onNavigate }) {
       }
     };
     fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => {},
+        { timeout: 5000 }
+      );
+    }
   }, []);
 
   const handleAvailableNow = async (category) => {
@@ -103,7 +113,7 @@ function HomePage({ onNavigate }) {
                           </div>
                         )}
                         <div>
-                          <h3 className="font-semibold text-gray-900">{provider.full_name}</h3>
+                          <h3 className="font-semibold text-gray-900">{provider.display_name || provider.full_name}</h3>
                           <p className="text-sm text-gray-600">⭐ {provider.rating} ({provider.total_ratings} reviews)</p>
                         </div>
                       </div>

@@ -5,6 +5,9 @@ import { requestService } from '../../services/requestService';
 const STATUS_TABS = [
   { key: 'all', label: 'All' },
   { key: 'pending', label: 'Upcoming' },
+  { key: 'accepted', label: 'Accepted' },
+  { key: 'on_the_way', label: 'On the way' },
+  { key: 'arrived', label: 'Arrived' },
   { key: 'in_progress', label: 'Ongoing' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
@@ -12,13 +15,20 @@ const STATUS_TABS = [
 
 function StatusBadge({ status }) {
   const color = status === 'completed' ? 'bg-forest-50 text-forest-700' :
-    status === 'pending' ? 'bg-clay-500/10 text-clay-600' :
     status === 'cancelled' ? 'bg-red-50 text-red-600' :
     status === 'in_progress' ? 'bg-blue-50 text-blue-600' :
+    status === 'arrived' ? 'bg-emerald-50 text-emerald-700' :
+    status === 'on_the_way' ? 'bg-amber-50 text-amber-700' :
+    status === 'accepted' ? 'bg-forest-50 text-forest-700' :
     'bg-ink/5 text-ink/70';
+  const label = status === 'in_progress' ? 'Ongoing' :
+    status === 'on_the_way' ? 'On the way' :
+    status === 'arrived' ? 'Arrived' :
+    status === 'accepted' ? 'Accepted' :
+    status.charAt(0).toUpperCase() + status.slice(1);
   return (
     <span className={`text-[12px] font-landing-sans font-semibold px-2.5 py-1 rounded-full ${color}`}>
-      {status === 'in_progress' ? 'Ongoing' : status.charAt(0).toUpperCase() + status.slice(1)}
+      {label}
     </span>
   );
 }

@@ -19,6 +19,18 @@ def get_categories(db: Session = Depends(get_db)):
     return categories
 
 
+@router.get("/nearby", response_model=List[dict])
+def get_nearby_providers(lat: float, lon: float, category_id: int, radius_km: float = 10, db: Session = Depends(get_db)):
+    from app.services.location import get_nearby_providers
+    return get_nearby_providers(db, lat, lon, radius_km, category_id)
+
+
+@router.get("/available-now", response_model=List[dict])
+def get_available_now(lat: float, lon: float, category_id: int, radius_km: float = 5, db: Session = Depends(get_db)):
+    from app.services.location import get_available_now_providers
+    return get_available_now_providers(db, lat, lon, category_id, radius_km)
+
+
 @router.get("/{category_id}", response_model=ServiceCategoryResponse)
 def get_category(category_id: int, db: Session = Depends(get_db)):
     category = db.query(ServiceCategory).filter(ServiceCategory.id == category_id, ServiceCategory.is_active == True).first()
@@ -63,15 +75,3 @@ def add_provider_service(category_id: int, service_data: ProviderServiceCreate, 
     db.commit()
     db.refresh(service)
     return service
-
-
-@router.get("/nearby", response_model=List[dict])
-def get_nearby_providers(lat: float, lon: float, category_id: int, radius_km: float = 10, db: Session = Depends(get_db)):
-    from app.services.location import get_nearby_providers
-    return get_nearby_providers(db, lat, lon, radius_km, category_id)
-
-
-@router.get("/available-now", response_model=List[dict])
-def get_available_now(lat: float, lon: float, category_id: int, radius_km: float = 5, db: Session = Depends(get_db)):
-    from app.services.location import get_available_now_providers
-    return get_available_now_providers(db, lat, lon, category_id, radius_km)

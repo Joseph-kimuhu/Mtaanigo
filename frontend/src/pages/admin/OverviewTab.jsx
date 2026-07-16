@@ -290,6 +290,7 @@ export default function OverviewTab() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const sseRef = useRef(null);
 
   const applyMetrics = (m) => {
     setMetrics(m);

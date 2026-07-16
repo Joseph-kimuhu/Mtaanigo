@@ -116,6 +116,9 @@ def get_services(current_user: User = Depends(get_current_provider), db: Session
 @router.post("/services", response_model=ProviderServiceResponse, status_code=status.HTTP_201_CREATED)
 def add_service(service_data: ProviderServiceCreate, current_user: User = Depends(get_current_provider), db: Session = Depends(get_db)):
     provider = get_provider_for_user(current_user, db)
+    cat = db.query(ServiceCategory).filter(ServiceCategory.id == service_data.category_id).first()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
     existing = db.query(ProviderService).filter(
         ProviderService.provider_id == provider.id,
         ProviderService.category_id == service_data.category_id,
@@ -163,36 +166,36 @@ def get_earnings(current_user: User = Depends(get_current_provider), db: Session
     request_ids = [r.id for r in requests]
     payments = db.query(Payment).filter(Payment.request_id.in_(request_ids)).all() if request_ids else []
 
-    total_earned = sum((p.amount for p in payments if p.status in ("completed", "paid")), 0.0)
+    total_earned = float(provider.earnings or 0.0)
     pending_clearance = sum((p.amount for p in payments if p.status == "pending"), 0.0)
     available_balance = total_earned - pending_clearance
 
-    # This month earnings
+    # This month earnings (net of commission)
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_earnings = sum(
-        (p.amount for p in payments if p.status in ("completed", "paid") and p.paid_at and p.paid_at >= month_start),
+        ((p.amount - (p.commission or 0.0)) for p in payments if p.status in ("completed", "paid") and p.paid_at and p.paid_at >= month_start),
         0.0,
     )
 
-    # Last 7 days chart data
+    # Last 7 days chart data (net of commission)
     from datetime import timedelta
     last7 = []
     for i in range(7):
         day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
         day_total = sum(
-            (p.amount for p in payments if p.status in ("completed", "paid") and p.paid_at and day_start <= p.paid_at < day_end),
+            ((p.amount - (p.commission or 0.0)) for p in payments if p.status in ("completed", "paid") and p.paid_at and day_start <= p.paid_at < day_end),
             0.0,
         )
-        last7.append({"day": day_start.strftime("%a"), "amount": day_total})
+        last7.append({"day": day_start.strftime("%a"), "amount": round(day_total, 2)})
     last7.reverse()
 
     return {
-        "total_earned": total_earned,
-        "pending_clearance": pending_clearance,
-        "available_balance": available_balance,
-        "month_earnings": month_earnings,
+        "total_earned": round(total_earned, 2),
+        "pending_clearance": round(pending_clearance, 2),
+        "available_balance": round(available_balance, 2),
+        "month_earnings": round(month_earnings, 2),
         "last_7_days": last7,
     }
 
@@ -230,9 +233,9 @@ def get_stats(current_user: User = Depends(get_current_provider), db: Session = 
     payments = db.query(Payment).filter(Payment.request_id.in_(request_ids)).all() if request_ids else []
 
     def earned(start):
-        return sum(p.amount for p in payments if p.status in ("completed", "paid") and p.paid_at and p.paid_at >= start)
+        return sum((p.amount - (p.commission or 0.0)) for p in payments if p.status in ("completed", "paid") and p.paid_at and p.paid_at >= start)
 
-    total_earned = sum(p.amount for p in payments if p.status in ("completed", "paid"))
+    total_earned = float(provider.earnings or 0.0)
     pending_clearance = sum(p.amount for p in payments if p.status == "pending")
     available_balance = total_earned - pending_clearance
 

@@ -26,6 +26,16 @@ export const requestService = {
     return response.data;
   },
 
+  async onTheWay(id) {
+    const response = await api.post(`/requests/${id}/on-the-way`);
+    return response.data;
+  },
+
+  async arrived(id) {
+    const response = await api.post(`/requests/${id}/arrived`);
+    return response.data;
+  },
+
   async completeRequest(id) {
     const response = await api.post(`/requests/${id}/complete`);
     return response.data;

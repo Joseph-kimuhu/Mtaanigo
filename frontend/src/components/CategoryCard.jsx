@@ -65,7 +65,7 @@ function CategoryCard({ category, onAvailableNow, userLocation }) {
               {nearbyProviders.map((provider) => (
                 <div key={provider.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <div>
-                    <p className="text-sm font-medium">{provider.full_name}</p>
+                    <p className="text-sm font-medium">{provider.display_name || provider.full_name}</p>
                     <p className="text-xs text-gray-600">📍 {provider.distance_km} km</p>
                     <p className="text-xs text-yellow-600">⭐ {provider.rating}</p>
                   </div>
